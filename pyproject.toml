@@ -1,0 +1,33 @@
+[project]
+name = "raster-hoymyr"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "altair",
+    "anthropic>=0.75.0",
+    "duckdb>=1.4.2",
+    "gdal>=3.12.0.post1",
+    "geoutils==0.2.0",
+    "leafmap>=0.57.9",
+    "localtileserver>=0.10.7",
+    "marimo[mcp]>=0.18.2",
+    "mcp>=1",
+    "nbformat>=5.10.4",
+    "openai>=2.9.0",
+    "owslib>=0.35.0",
+    "polars[pyarrow]>=1.35.2",
+    "pydantic>=2",
+    "pytest>=9.0.1",
+    "python-lsp-ruff>=2.3.0",
+    "python-lsp-server>=1.13.2",
+    "rasterio>=1.4.3",
+    "ruff>=0.14.8",
+    "sqlglot>=28.1.0",
+    "vegafusion>=2.0.3",
+    "vl-convert-python>=1.8.0",
+    "websockets>=15.0.1",
+    "whitebox>=2.3.6",
+    "xarray<=2025.4",
+]

@@ -1,0 +1,191 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.18.4"
+  },
+  "cells": [
+    {
+      "id": "setup",
+      "code_hash": "82d14ab789d1ed9e35b9851aca796a33",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hbol",
+      "code_hash": "b4bc8e218f0323e9b9594fcf1548aff6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"funksjoner\">Funksjoner</h3></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "OUpN",
+      "code_hash": "3faa9214cd53e827cc51c3d7fff126fb",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "syntax",
+          "evalue": "line 57\n    Path(output_folder).mkdir(parents=True, exist_ok=True)\n                                                          ^\nIndentationError: unindent does not match any outer indentation level\n",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "32517f276f9f29d9d1b15ec1273fe9f6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "8e68c138c6b373478266bb0e8af5d80d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "4ceee41f0afb8b98a212b0ca7dff4dbf",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\">M\u00e5 rydde opp i alle input/oputt filer - b\u00f8r defineres bedre</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BdFh",
+      "code_hash": "e262c6da159296d4fdb68f1b27cf5018",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "syntax",
+          "evalue": "line 2\n    input_vector = vektor/###\n                          ^^^\nSyntaxError: invalid syntax\n",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bvyB",
+      "code_hash": "e64ad7ddae4c3a89b42fcbf978d34344",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "syntax",
+          "evalue": "line 3\n    clipping_vector = \n                      ^\nSyntaxError: invalid syntax\n",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "6f163486feb51fbb91325c48241b171b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "327319bc8d9f6b0447d79fb612c4a366",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "WhiteboxTools Version: WhiteboxTools v2.4.0 (c) Dr. John Lindsay 2017-2023\n\nWhiteboxTools is an advanced geospatial data analysis platform developed at\nthe University of Guelph's Geomorphometry and Hydrogeomatics Research \nGroup (GHRG). See www.whiteboxgeo.com for more details.\n\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "SFPL",
+      "code_hash": null,
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "45b5e17aa18951e23d7c733dbac10415",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Driver:               VRT \nOpened from file:     DTM/vrt/dtm10.vrt \nFilename:             DTM/vrt/dtm10.vrt \nLoaded?               False \nModified since load?  False \nGrid size:            125051, 155051\nNumber of bands:      1\nData types:           float32\nCoordinate system:    ['EPSG:25833']\nNodata value:         -32767.0\nPixel interpretation: None\nPixel size:           10.0, 10.0\nUpper left corner:    -100255.0, 7950255.0\nLower right corner:   1150255.0, 6399745.0\n\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    }
+  ]
+}
