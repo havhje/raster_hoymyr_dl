@@ -1,0 +1,30 @@
+# Ignore DTM raster data
+raster_output/
+
+# Ignore vector data
+vektor_inndata/
+
+*.vrt
+
+__marimo__/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
