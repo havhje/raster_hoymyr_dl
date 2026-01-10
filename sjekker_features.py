@@ -19,12 +19,21 @@ with app.setup:
     import time
     import polars as pl
     from pyogrio import read_arrow
+    import tempfile
 
 
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
     ### Leser inn grunnlagsdata
+    """)
+    return
+
+
+@app.cell
+def _():
+    mo.md(r"""
+    ### HUsk at du å lese inn, filtrer og skrive inn høymyr
     """)
     return
 
@@ -42,13 +51,9 @@ def _():
 @app.cell
 def _(mi_typer_path):
     # bruker pyogrio engine for raskere lesing
-    mi_typer_gdf = gpd.read_file(
-        mi_typer_path, layer="Naturtype_nin_omr", engine="pyogrio"
-    )
+    mi_typer_gdf = gpd.read_file(mi_typer_path, layer="Naturtype_nin_omr", engine="pyogrio")
 
-    mi_typer_våtmark = mi_typer_gdf[mi_typer_gdf["hovedøkosystem"] == "våtmark"][
-        ["geometry"]
-    ]
+    mi_typer_våtmark = mi_typer_gdf[mi_typer_gdf["hovedøkosystem"] == "våtmark"][["geometry"]]
 
     mi_typer_våtmark.to_parquet("vektor_inndata/mi_typer_våtmark_nordland.parquet")
     return
@@ -57,116 +62,80 @@ def _(mi_typer_path):
 @app.cell
 def _(grunnkart_nordland_path):
     # bruker pyogrio engine for raskere lesing
-    grunnkart_nordland_gdf = gpd.read_file(
-        grunnkart_nordland_path, engine="pyogrio"
-    )
+    grunnkart_nordland_gdf = gpd.read_file(grunnkart_nordland_path, engine="pyogrio")
 
-    myr_nordland = grunnkart_nordland_gdf[grunnkart_nordland_gdf["ecotype"] == 7][
-        ["geometry"]
-    ]
+    myr_nordland = grunnkart_nordland_gdf[grunnkart_nordland_gdf["ecotype"] == 7][["geometry"]]
 
     myr_nordland.to_parquet("vektor_inndata/myr_nordland.parquet")
     return
 
 
-@app.cell(column=1)
-def _():
-    # input for å hente dtm1m
-    input_polygons_path = Path("vektor_inndata/polygon_andøya")
-    return (input_polygons_path,)
-
-
-@app.cell
-def _(input_polygons_path):
-    get_dtm_1m_per_polygon(input_polygons_path, "1m_DTM_raster")
-    return
-
-
 @app.cell
 def _():
-    # INput/output for VRT bygging
+    # Leser inn parquet filene
 
-    # Lager VRT av DTM filer (landsdekkende)
+    mi_typer_våtmark_filtrert_path = Path("vektor_inndata/mi_typer_våtmark_nordland.parquet")
+    mi_typer_våtmark_filtrert = gpd.read_parquet(mi_typer_våtmark_filtrert_path).to_crs("EPSG:25833")
 
-    dtm_folder = "1m_DTM_raster"
-
-    output_vrt_dtm = "dtm_1m.vrt"
-
-    # lister all .tiff filer
-    dtm_files = glob(os.path.join(dtm_folder, "*.tif"))
-
-    # kaller vrt bygger funksjonen
-    dtm_vrt = build_vrt(dtm_files, output_vrt_dtm)
-    return (output_vrt_dtm,)
+    myr_nordland_filtrert_path = Path("vektor_inndata/myr_nordland.parquet")
+    myr_nordland_filtrert = gpd.read_parquet(myr_nordland_filtrert_path).to_crs("EPSG:25833")
+    return (mi_typer_våtmark_filtrert,)
 
 
-@app.cell
-def _(output_vrt_dtm):
-    dtm_1_raster = gu.Raster(output_vrt_dtm)
-    dtm_1_raster.info()
-    return
-
-
-@app.cell
+@app.cell(column=1, hide_code=True)
 def _():
     mo.md(r"""
-    # Parallel prosessering og du må fikse riktig navn på outputfilene i clip raster funksjonen i for loopen.
+    ## TO DO:
+
+    🔴 Critical Fixes
+
+    # Forstå fiksene du har
+    -  Write WCS response bytes to temp file before loading with gu.Raster() using BytesIO
+    - Spesifisere hvilket polygon som skal brukes til maskering
+
+      🟡 Memory & Performance
+    - Switch iterrows() → itertuples()
+    - Add del raster, vector or explicit .close() after each iteration to prevent memory leak
+
+    🟢 Error Handling
+    - Wrap WCS request in try/except block
+    -Log failed polygon indices to a list for retry
+    - Add timeout parameter to WCS requests
+    - 🚀 Parallel Processing (for 17k polygons)
     """)
     return
 
 
-@app.cell(column=2, hide_code=True)
+@app.cell
+def _(mi_typer_våtmark_filtrert):
+    polygon = mi_typer_våtmark_filtrert
+    output_folder = Path("raster_output/raster_mi_myr")
+
+    # eller
+
+    # polygon = myr_nordland_filtrert
+    # output_folder = Path("raster_output/raster_myr_nordland")
+    return output_folder, polygon
+
+
+@app.cell
+def _(polygon):
+    # bruker geopandas til å finne boundingboxes for hvert polygon
+    individual_bboxes = polygon.bounds
+    return (individual_bboxes,)
+
+
+@app.cell
 def _():
-    mo.md(r"""
-    ### Funksjoner
-    """)
-    return
-
-
-@app.function(hide_code=True)
-def get_dtm_1m_per_polygon(polygon_path: str, output_folder: str):
-    """
-    Download 1m DTM tiles from Geonorge WCS for each polygon feature.
-
-    Reads polygon geometries, extracts bounding boxes, and downloads
-    corresponding DTM 1m data from Kartverket's WCS service. Each feature
-    gets a separate GeoTIFF saved to the output folder.
-
-    Parameters:
-        polygon_path: Path to vector file containing polygon geometries
-        output_folder: Directory path where downloaded DTM tiles will be saved
-
-    Returns:
-        None. Files are saved as D_1m_{index}.tif in output_folder.
-
-    Example:
-        >>> input_polygons = "vektor_inndata/polygon_andoya.shp"
-        >>> get_dtm_1m_per_feature(input_polygons, "1m_DTM_raster")
-        # Creates: 1m_DTM_raster/D_1m_0.tif, D_1m_1.tif, etc.
-
-    Note:
-        - Requires internet connection to Geonorge WCS service
-        - Input polygons are reprojected to EPSG:25833 automatically
-        - Includes 1 second delay between requests to avoid rate limiting
-        - Uses WCS 1.0.0 since 2.0.1 is misconfigured on server side
-    """
-
     # Leser data fra geonorge med WCS (bruker 1.0.0 siden 2.0.1 er feilkonfigurert)
     wcs_url = "https://wcs.geonorge.no/skwms1/wcs.hoyde-dtm-nhm-25833"
     coverage_id = "nhm_dtm_topo_25833"
     wcs = WebCoverageService(wcs_url, version="1.0.0")
+    return coverage_id, wcs
 
-    # Sørg for at output-mappen eksisterer
-    Path(output_folder).mkdir(exist_ok=True)
 
-    # Leser polygoner
-    polygons = gpd.read_file(polygon_path).to_crs(
-        "EPSG:25833"
-    )  # leser inn polygonene og reprojecter til riktig CRS
-    individual_bboxes = (
-        polygons.bounds
-    )  # bruker geopandas til å finne boundingboxes for hvert polygon
-
+@app.cell
+def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
     # leser hvert polygon og laster ned dtm 1m for hver bbox. Skriver til output mappe.
     # idx = indeksen til hver enkelt rad, bruker denne til navgivning av filer
     # row = selve raden med bbox info (minx, miny, maxx, maxy).
@@ -197,40 +166,41 @@ def get_dtm_1m_per_polygon(polygon_path: str, output_folder: str):
 
         nedlastet_data = response_geonorge.read()  # Laster ned data
 
-        output = (
-            Path(output_folder) / f"D_1m_{index}.tif"
-        )  # lager fila hvor dataene skrives til
+        # Lager en temp fil som du skriver responsdataene til fra geonorge
+        temp = Path(tempfile.gettempdir()) / f"temp_{index}.tif"
+        temp.write_bytes(nedlastet_data)
 
-        output.write_bytes(nedlastet_data)  # Skriver nedlastede data til fil
+        # Maskerer så data utenfor polygonet, men innenfor bb som NoData
+        # .loc er pandas kode for å hente en rad basert på index [[]] gir en df
+        vector = gu.Vector(polygon.loc[[index]])
+
+        raster = gu.Raster(temp)
+
+        # Lager en maske (raster) hvor innsiden polygon = TRUE og utsiden = False
+        mask = raster.create_mask(vector)
+
+        # Bruker masken til å sette verdier i rasteren.
+        # Innvertere med ~ ettersom set_mask() gir True = NoData
+        # ~mask = False inside, True outside
+        # False pixels (inside) → remain visible
+        # True pixels (outside) → become NoData
+        raster.set_mask(~mask)
+
+        output = output_folder / f"D_1m_{index}.tif"
+        raster.save(output)
+
+        # Sletter midlertidig fil
+        temp.unlink()
 
         time.sleep(1)
+    return
 
 
-@app.cell
-def _(index, input_clip_polygon_path):
-    def clip_raster_with_polygon(
-        input_clip_polygons_path,
-        raster_folder_path,
-        output_folder,
-    ):
-        for raster_geotiff in raster_folder_path.glob("*.tif"):
-            vector = gu.Vector(input_clip_polygon_path)
-
-            raster = gu.Raster(raster_geotiff)
-
-            # Lager en maske (raster) hvor innsiden polygon = TRUE og utsiden = False
-            mask = raster.create_mask(vector)
-
-            # Bruker masken til å sette verdier i rasteren.
-            # Innvertere med ~ ettersom set_mask() gir True = NoData
-            # ~mask = False inside, True outside
-            # False pixels (inside) → remain visible
-            # True pixels (outside) → become NoData
-            raster.set_mask(~mask)
-
-            output = Path(output_folder) / f"D_1m_{index}.tif"
-
-            raster.save(output)
+@app.cell(column=2, hide_code=True)
+def _():
+    mo.md(r"""
+    ### Gammelt
+    """)
     return
 
 
@@ -257,6 +227,31 @@ def build_vrt(input_files: list[str], output_path: str) -> gdal.Dataset:
     results = gdal.BuildVRT(output_path, input_files)
 
     return results
+
+
+@app.cell(hide_code=True)
+def _():
+    # INput/output for VRT bygging
+
+    # Lager VRT av DTM filer (landsdekkende)
+
+    dtm_folder = "1m_DTM_raster"
+
+    output_vrt_dtm = "dtm_1m.vrt"
+
+    # lister all .tiff filer
+    dtm_files = glob(os.path.join(dtm_folder, "*.tif"))
+
+    # kaller vrt bygger funksjonen
+    dtm_vrt = build_vrt(dtm_files, output_vrt_dtm)
+    return (output_vrt_dtm,)
+
+
+@app.cell
+def _(output_vrt_dtm):
+    dtm_1_raster = gu.Raster(output_vrt_dtm)
+    dtm_1_raster.info()
+    return
 
 
 if __name__ == "__main__":
