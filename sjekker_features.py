@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.19.1"
 app = marimo.App(width="columns")
 
 with app.setup:
@@ -26,14 +26,6 @@ with app.setup:
 def _():
     mo.md(r"""
     ### Leser inn grunnlagsdata
-    """)
-    return
-
-
-@app.cell
-def _():
-    mo.md(r"""
-    ### HUsk at du å lese inn, filtrer og skrive inn høymyr
     """)
     return
 
@@ -82,26 +74,22 @@ def _():
     return (mi_typer_våtmark_filtrert,)
 
 
-@app.cell(column=1, hide_code=True)
+@app.cell(column=1)
 def _():
     mo.md(r"""
     ## TO DO:
 
     🔴 Critical Fixes
-
-    # Forstå fiksene du har
-    -  Write WCS response bytes to temp file before loading with gu.Raster() using BytesIO
-    - Spesifisere hvilket polygon som skal brukes til maskering
+    - Lese inn filtere og ta ut høymyr <- er det faktiske treningslaget
+    - 🚀 Parallel Processing (for 17k polygons)
 
       🟡 Memory & Performance
-    - Switch iterrows() → itertuples()
     - Add del raster, vector or explicit .close() after each iteration to prevent memory leak
 
     🟢 Error Handling
     - Wrap WCS request in try/except block
     -Log failed polygon indices to a list for retry
     - Add timeout parameter to WCS requests
-    - 🚀 Parallel Processing (for 17k polygons)
     """)
     return
 
@@ -111,7 +99,7 @@ def _(mi_typer_våtmark_filtrert):
     polygon = mi_typer_våtmark_filtrert
     output_folder = Path("raster_output/raster_mi_myr")
 
-    # eller
+    # eller når du skal gjøre prediksjoner
 
     # polygon = myr_nordland_filtrert
     # output_folder = Path("raster_output/raster_myr_nordland")
@@ -139,15 +127,16 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
     # leser hvert polygon og laster ned dtm 1m for hver bbox. Skriver til output mappe.
     # idx = indeksen til hver enkelt rad, bruker denne til navgivning av filer
     # row = selve raden med bbox info (minx, miny, maxx, maxy).
-    # Må bruke .iterrows() for å iterere/loope over hver rad, hvis du ikke bruker denne så looper du over bare selve kolonne(navnene)
+    # Må bruke .itertuple() for å iterere/loope over hver rad, hvis du ikke bruker denne så looper du over bare selve kolonne(navnene)
 
-    for index, row in individual_bboxes.iterrows():
+
+    for index, row in individual_bboxes.itertuples():
         # Lager bbox tuple for WCS 1.0.0 (minx, miny, maxx, maxy)
         bbox = (
-            float(row["minx"]),
-            float(row["miny"]),
-            float(row["maxx"]),
-            float(row["maxy"]),
+            float(row.minx),
+            float(row.miny),
+            float(row.maxx),
+            float(row.maxy),
         )
 
         # Beregner pixelstørrelse for ~1m oppløsning
@@ -170,24 +159,23 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
         temp = Path(tempfile.gettempdir()) / f"temp_{index}.tif"
         temp.write_bytes(nedlastet_data)
 
-        # Maskerer så data utenfor polygonet, men innenfor bb som NoData
-        # .loc er pandas kode for å hente en rad basert på index [[]] gir en df
-        vector = gu.Vector(polygon.loc[[index]])
+        # Bruker en with block til å "rydde opp alle variabler" pr loop. raster objektet er midlertidig og eksistere bare i with blokken. Deretter slettes den og alle påfølgende variabler i blokken. SLik at alle variabler slettes for hver gang loopen kjører.
+        with gu.Raster(temp) as raster:
+            # Maskerer så data utenfor polygonet, men innenfor bb som NoData
+            # .loc er pandas kode for å hente en rad basert på index [[]] gir en df
+            vector = gu.Vector(polygon.loc[[index]])
+            # Lager en maske (raster) hvor innsiden polygon = TRUE og utsiden = False
+            mask = raster.create_mask(vector)
 
-        raster = gu.Raster(temp)
+            # Bruker masken til å sette verdier i rasteren.
+            # Innvertere med ~ ettersom set_mask() gir True = NoData
+            # ~mask = False inside, True outside
+            # False pixels (inside) → remain visible
+            # True pixels (outside) → become NoData
+            raster.set_mask(~mask)
 
-        # Lager en maske (raster) hvor innsiden polygon = TRUE og utsiden = False
-        mask = raster.create_mask(vector)
-
-        # Bruker masken til å sette verdier i rasteren.
-        # Innvertere med ~ ettersom set_mask() gir True = NoData
-        # ~mask = False inside, True outside
-        # False pixels (inside) → remain visible
-        # True pixels (outside) → become NoData
-        raster.set_mask(~mask)
-
-        output = output_folder / f"D_1m_{index}.tif"
-        raster.save(output)
+            output = output_folder / f"D_1m_{index}.tif"
+            raster.save(output)
 
         # Sletter midlertidig fil
         temp.unlink()
