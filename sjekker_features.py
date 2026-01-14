@@ -48,6 +48,16 @@ def _(mi_typer_path):
     mi_typer_våtmark = mi_typer_gdf[mi_typer_gdf["hovedøkosystem"] == "våtmark"][["geometry"]]
 
     mi_typer_våtmark.to_parquet("vektor_inndata/mi_typer_våtmark_nordland.parquet")
+    return (mi_typer_gdf,)
+
+
+@app.cell
+def _(mi_typer_gdf):
+    høymyr_liste = ["Atlantisk høymyr", "Kanthøymyr", "Platåhøymyr", "Eksentrisk høymyr", "Konsentrisk høymyr"]
+
+    høymyr_nordland = mi_typer_gdf[mi_typer_gdf["naturtype"].isin(høymyr_liste)][["geometry"]]
+
+    høymyr_nordland.to_parquet("vektor_inndata/høymyr_nordland.parquet")
     return
 
 
@@ -74,20 +84,21 @@ def _():
     return (mi_typer_våtmark_filtrert,)
 
 
-@app.cell(column=1)
+@app.cell
+def _():
+    return
+
+
+@app.cell(column=1, hide_code=True)
 def _():
     mo.md(r"""
     ## TO DO:
 
     🔴 Critical Fixes
-    - Lese inn filtere og ta ut høymyr <- er det faktiske treningslaget
     - 🚀 Parallel Processing (for 17k polygons)
 
-      🟡 Memory & Performance
-    - Add del raster, vector or explicit .close() after each iteration to prevent memory leak
 
     🟢 Error Handling
-    - Wrap WCS request in try/except block
     -Log failed polygon indices to a list for retry
     - Add timeout parameter to WCS requests
     """)
@@ -96,7 +107,7 @@ def _():
 
 @app.cell
 def _(mi_typer_våtmark_filtrert):
-    polygon = mi_typer_våtmark_filtrert
+    polygon = mi_typer_våtmark_filtrert.head(5)  # bruker bare de fem første polygonene for testing
     output_folder = Path("raster_output/raster_mi_myr")
 
     # eller når du skal gjøre prediksjoner
@@ -130,8 +141,9 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
     # Må bruke .itertuple() for å iterere/loope over hver rad, hvis du ikke bruker denne så looper du over bare selve kolonne(navnene)
 
 
-    for index, row in individual_bboxes.itertuples():
+    for row in individual_bboxes.itertuples():
         # Lager bbox tuple for WCS 1.0.0 (minx, miny, maxx, maxy)
+        index = row.Index  # Henter indeksen til raden
         bbox = (
             float(row.minx),
             float(row.miny),
@@ -140,8 +152,8 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
         )
 
         # Beregner pixelstørrelse for ~1m oppløsning
-        width = max(1, int(row["maxx"] - row["minx"]))
-        height = max(1, int(row["maxy"] - row["miny"]))
+        width = max(1, int(row.maxx) - (row.minx))
+        height = max(1, int(row.maxy) - (row.miny))
 
         # WCS 1.0.0 bruker bbox og crs i stedet for subsets
         response_geonorge = wcs.getCoverage(
@@ -159,13 +171,19 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
         temp = Path(tempfile.gettempdir()) / f"temp_{index}.tif"
         temp.write_bytes(nedlastet_data)
 
-        # Bruker en with block til å "rydde opp alle variabler" pr loop. raster objektet er midlertidig og eksistere bare i with blokken. Deretter slettes den og alle påfølgende variabler i blokken. SLik at alle variabler slettes for hver gang loopen kjører.
-        with gu.Raster(temp) as raster:
+        # Bruker try/finally for å sikre opprydding selv ved feil
+        raster = None
+        vector = None
+        mask = None
+        try:
+            raster = gu.Raster(temp, load_data=True)
+
             # Maskerer så data utenfor polygonet, men innenfor bb som NoData
             # .loc er pandas kode for å hente en rad basert på index [[]] gir en df
-            vector = gu.Vector(polygon.loc[[index]])
-            # Lager en maske (raster) hvor innsiden polygon = TRUE og utsiden = False
-            mask = raster.create_mask(vector)
+            vector = gu.Vector(polygon.loc[[index]])  # henter samme polygonet som rasteren er laget fra
+
+            # Lager en maske (raster) basert på vektor polygonet hvor innsiden polygon = TRUE og utsiden = False
+            mask = vector.create_mask(ref=raster)  # setter ref for å få lik CRS, extent, osv.
 
             # Bruker masken til å sette verdier i rasteren.
             # Innvertere med ~ ettersom set_mask() gir True = NoData
@@ -176,6 +194,19 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
 
             output = output_folder / f"D_1m_{index}.tif"
             raster.save(output)
+
+        finally:
+            # Eksplisitt opprydding for å forhindre minnelekkasje
+            # Sletter objektene i omvendt rekkefølge av opprettelse
+            if mask is not None:
+                del mask
+            if vector is not None:
+                del vector
+            if raster is not None:
+                # Lukk underliggende GDAL dataset hvis tilgjengelig
+                if hasattr(raster, "_ds") and raster._ds is not None:
+                    raster._ds = None
+                del raster
 
         # Sletter midlertidig fil
         temp.unlink()
