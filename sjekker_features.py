@@ -76,12 +76,15 @@ def _(grunnkart_nordland_path):
 def _():
     # Leser inn parquet filene
 
-    mi_typer_våtmark_filtrert_path = Path("vektor_inndata/mi_typer_våtmark_nordland.parquet")
-    mi_typer_våtmark_filtrert = gpd.read_parquet(mi_typer_våtmark_filtrert_path).to_crs("EPSG:25833")
+    mi_typer_våtmark_path = Path("vektor_inndata/mi_typer_våtmark_nordland.parquet")
+    mi_typer_våtmark_nordland_endelig = gpd.read_parquet(mi_typer_våtmark_path).to_crs("EPSG:25833")
 
-    myr_nordland_filtrert_path = Path("vektor_inndata/myr_nordland.parquet")
-    myr_nordland_filtrert = gpd.read_parquet(myr_nordland_filtrert_path).to_crs("EPSG:25833")
-    return (mi_typer_våtmark_filtrert,)
+    myr_nordland_path = Path("vektor_inndata/myr_nordland.parquet")
+    myr_nordland_endelig = gpd.read_parquet(myr_nordland_path).to_crs("EPSG:25833")
+
+    høymyr_nordland_path = Path("vektor_inndata/høymyr_nordland.parquet")
+    høymyr_nordland_endelig = gpd.read_parquet(høymyr_nordland_path).to_crs("EPSG:25833")
+    return (høymyr_nordland_endelig,)
 
 
 @app.cell
@@ -89,31 +92,22 @@ def _():
     return
 
 
-@app.cell(column=1, hide_code=True)
-def _():
-    mo.md(r"""
-    ## TO DO:
+@app.cell(column=1)
+def _(høymyr_nordland_endelig):
+    #polygon = mi_typer_våtmark_nordland_endelig
+    #output_folder = Path("raster_output/raster_mi_våtmark_nordland")
 
-    🔴 Critical Fixes
-    - 🚀 Parallel Processing (for 17k polygons)
-
-
-    🟢 Error Handling
-    -Log failed polygon indices to a list for retry
-    - Add timeout parameter to WCS requests
-    """)
-    return
+    #polygon = myr_nordland_endelig
+    #output_folder = Path("raster_output/raster_myr_nordland")
 
 
-@app.cell
-def _(mi_typer_våtmark_filtrert):
-    polygon = mi_typer_våtmark_filtrert.head(5)  # bruker bare de fem første polygonene for testing
-    output_folder = Path("raster_output/raster_mi_myr")
+    polygon = høymyr_nordland_endelig
+    output_folder = Path("raster_output/raster_høymyr_nordland")
 
-    # eller når du skal gjøre prediksjoner
 
-    # polygon = myr_nordland_filtrert
-    # output_folder = Path("raster_output/raster_myr_nordland")
+
+
+
     return output_folder, polygon
 
 
@@ -211,65 +205,12 @@ def _(coverage_id, individual_bboxes, output_folder, polygon, wcs):
         # Sletter midlertidig fil
         temp.unlink()
 
-        time.sleep(1)
+        time.sleep(0.5)
     return
 
 
-@app.cell(column=2, hide_code=True)
+@app.cell(column=2)
 def _():
-    mo.md(r"""
-    ### Gammelt
-    """)
-    return
-
-
-@app.function(hide_code=True)
-def build_vrt(input_files: list[str], output_path: str) -> gdal.Dataset:
-    """
-    Build a GDAL VRT (Virtual Raster) from multiple input files.
-
-    Creates a lightweight virtual mosaic that references the source files
-    without copying data. Useful for treating multiple tiles as one raster.
-
-    Parameters:
-        input_files: List of paths to input raster files (.tif)
-        output_path: Path for output VRT file (must end with .vrt)
-
-    Returns:
-        GDAL Dataset object of the created VRT
-
-    Example:
-        >>> tif_files = glob("DTM/tiles/*.tif")
-        >>> vrt = build_vrt(tif_files, "DTM/mosaic.vrt")
-        >>> raster = gu.Raster("DTM/mosaic.vrt")
-    """
-    results = gdal.BuildVRT(output_path, input_files)
-
-    return results
-
-
-@app.cell(hide_code=True)
-def _():
-    # INput/output for VRT bygging
-
-    # Lager VRT av DTM filer (landsdekkende)
-
-    dtm_folder = "1m_DTM_raster"
-
-    output_vrt_dtm = "dtm_1m.vrt"
-
-    # lister all .tiff filer
-    dtm_files = glob(os.path.join(dtm_folder, "*.tif"))
-
-    # kaller vrt bygger funksjonen
-    dtm_vrt = build_vrt(dtm_files, output_vrt_dtm)
-    return (output_vrt_dtm,)
-
-
-@app.cell
-def _(output_vrt_dtm):
-    dtm_1_raster = gu.Raster(output_vrt_dtm)
-    dtm_1_raster.info()
     return
 
 
